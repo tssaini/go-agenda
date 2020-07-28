@@ -3,11 +3,14 @@ package main
 import (
 	"fmt"
 
-	"github.com/tssaini/go-agenda/db"
+	"github.com/tssaini/go-agenda/job"
 )
 
 func main() {
-	db.InitializeMySQL()
-	jobs := db.QueryDB("SELECT name, nextRun, locked, lastRun FROM agendaJob")
-	fmt.Println(jobs[0])
+	job.Define("print hello", func() error {
+		fmt.Println("Hello world")
+		return nil
+	})
+
+	job.Now("print hello")
 }
