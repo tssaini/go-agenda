@@ -1,7 +1,7 @@
 package main
 
 import (
-	"time"
+	"errors"
 
 	"github.com/tssaini/go-agenda/job"
 
@@ -11,19 +11,21 @@ import (
 
 // Agenda struct stores all jobs
 type Agenda struct {
-	jobs map[string]*job.Job
+	jobs    map[string]*job.Job
+	running bool
+	stop    chan struct{}
 }
 
 // New creates and returns new agenda object
 func New() *Agenda {
-	a := Agenda{jobs: make(map[string]*job.Job)}
+	a := Agenda{jobs: make(map[string]*job.Job), running: false, stop: make(chan struct{})}
 	return &a
 }
 
 // Define instantiate new job
 func (a *Agenda) Define(name string, jobFunc func() error) {
 	log.Infof("Defining job %v", name)
-	a.jobs[name] = &job.Job{Name: name, JobFunc: jobFunc}
+	a.jobs[name] = &job.Job{Name: name, JobFunc: jobFunc, Stop: make(chan struct{}), Running: false}
 }
 
 // Now runs the job provided now
@@ -46,12 +48,48 @@ func (a *Agenda) Schedule(name string, time string) error {
 
 // RepeatEvery when the job should repeat
 func (a *Agenda) RepeatEvery(name string, spec string) error {
-	scheduler, err := cron.ParseStandard(spec)
+	schedule, err := cron.ParseStandard(spec)
 	if err != nil {
 		return err
 	}
-	nextRun := scheduler.Next(time.Now())
-	a.jobs[name].NextRun = nextRun
-	// log.Infof("Scheduling %v for %v", name, nextRun)
+	a.jobs[name].Schedule = schedule
 	return nil
+}
+
+// Start agenda
+func (a *Agenda) Start() error {
+	if a.running {
+		return errors.New("Agenda is already running")
+	}
+	a.running = true
+	go a.run()
+	return nil
+}
+
+// Stop agenda
+func (a *Agenda) Stop() error {
+	a.stop <- struct{}{}
+	a.running = false
+	return nil
+}
+
+func (a *Agenda) run() error {
+	log.Infof("Running agenda loop")
+	// run all jobs
+	for _, j := range a.jobs {
+		go j.LaunchJob()
+	}
+	for {
+		select {
+		case <-a.stop:
+			//stop all jobs
+			for _, j := range a.jobs {
+				if j.Running {
+					j.Stop <- struct{}{}
+				}
+			}
+			return nil
+		}
+	}
+
 }

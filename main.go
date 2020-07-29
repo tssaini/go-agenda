@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 )
 
 func main() {
@@ -12,7 +13,10 @@ func main() {
 		return nil
 	})
 
-	agenda.Now("print hello")
+	// agenda.Now("print hello")
 
-	agenda.RepeatEvery("print hello", "0 8 * * *")
+	//every hour
+	agenda.RepeatEvery("print hello", "59 * * * *")
+	agenda.Start()
+	time.Sleep(5000 * time.Minute)
 }
