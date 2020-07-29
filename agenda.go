@@ -14,29 +14,33 @@ type Agenda struct {
 	jobs    map[string]*job.Job
 	running bool
 	stop    chan struct{}
+	newJob  chan *job.Job
 }
 
 // New creates and returns new agenda object
 func New() *Agenda {
-	a := Agenda{jobs: make(map[string]*job.Job), running: false, stop: make(chan struct{})}
+	a := Agenda{jobs: make(map[string]*job.Job), running: false, stop: make(chan struct{}), newJob: make(chan *job.Job)}
 	return &a
 }
 
 // Define instantiate new job
 func (a *Agenda) Define(name string, jobFunc func() error) {
 	log.Infof("Defining job %v", name)
-	a.jobs[name] = &job.Job{Name: name, JobFunc: jobFunc, Stop: make(chan struct{}), Running: false}
+	j := &job.Job{Name: name, JobFunc: jobFunc, Stop: make(chan struct{}), Running: false}
+	//TODO: check if the job already exists
+	a.jobs[name] = j
 }
 
 // Now runs the job provided now
 func (a *Agenda) Now(name string) error {
 	log.Infof("Starting job %v", name)
 	job := a.jobs[name]
-	err := job.JobFunc()
-	if err != nil {
-		log.Errorf("Error while running %v: %v", name, err)
-		return err
-	}
+	// err := job.JobFunc()
+	// if err != nil {
+	// 	log.Errorf("Error while running %v: %v", name, err)
+	// 	return err
+	// }
+	job.RunJob()
 	log.Infof("Completed job %v successfully", name)
 	return nil
 }
@@ -53,6 +57,9 @@ func (a *Agenda) RepeatEvery(name string, spec string) error {
 		return err
 	}
 	a.jobs[name].Schedule = schedule
+	if a.running {
+		a.newJob <- a.jobs[name]
+	}
 	return nil
 }
 
@@ -82,6 +89,7 @@ func (a *Agenda) run() error {
 	for {
 		select {
 		case <-a.stop:
+			log.Infof("Stopping agenda loop")
 			//stop all jobs
 			for _, j := range a.jobs {
 				if j.Running {
@@ -89,7 +97,8 @@ func (a *Agenda) run() error {
 				}
 			}
 			return nil
+		case j := <-a.newJob:
+			go j.LaunchJob()
 		}
 	}
-
 }

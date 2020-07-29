@@ -35,7 +35,12 @@ func (j *Job) LaunchJob() {
 			//Run job here
 			log.Infof("Running job %v", j.Name)
 			j.LastRun = runTime
-			go j.JobFunc()
+			go j.RunJob()
 		}
 	}
+}
+
+// RunJob run the job function
+func (j *Job) RunJob() {
+	j.JobFunc()
 }
