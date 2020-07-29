@@ -2,15 +2,17 @@ package main
 
 import (
 	"fmt"
-
-	"github.com/tssaini/go-agenda/job"
 )
 
 func main() {
-	job.Define("print hello", func() error {
+	agenda := New()
+
+	agenda.Define("print hello", func() error {
 		fmt.Println("Hello world")
 		return nil
 	})
 
-	job.Now("print hello")
+	agenda.Now("print hello")
+
+	agenda.RepeatEvery("print hello", "0 8 * * *")
 }
