@@ -26,22 +26,31 @@ func New() *Agenda {
 	return &a
 }
 
-// Define instantiate new job
-func (a *Agenda) Define(name string, jobFunc func() error) {
-	log.Infof("Defining job %v", name)
-	j := &job.Job{Name: name, JobFunc: jobFunc, Stop: make(chan struct{}), Running: false}
-	//TODO: check if the job already exists
+func (a *Agenda) getJob(name string) *job.Job {
+	a.jobsMutex.RLock()
+	j := a.jobs[name]
+	a.jobsMutex.RUnlock()
+	return j
+}
+
+func (a *Agenda) addJob(name string, j *job.Job) {
 	a.jobsMutex.Lock()
 	a.jobs[name] = j
 	a.jobsMutex.Unlock()
 }
 
+// Define instantiate new job
+func (a *Agenda) Define(name string, jobFunc func() error) {
+	log.Infof("Defining job %v", name)
+	j := &job.Job{Name: name, JobFunc: jobFunc, Stop: make(chan struct{}), Running: false}
+	//TODO: check if the job already exists
+	a.addJob(name, j)
+}
+
 // Now runs the job provided now
 func (a *Agenda) Now(name string) error {
 	log.Infof("Starting job %v", name)
-	a.jobsMutex.RLock()
-	job := a.jobs[name]
-	a.jobsMutex.RUnlock()
+	job := a.getJob(name)
 	// err := job.JobFunc()
 	// if err != nil {
 	// 	log.Errorf("Error while running %v: %v", name, err)
@@ -63,9 +72,7 @@ func (a *Agenda) RepeatEvery(name string, spec string) error {
 	if err != nil {
 		return err
 	}
-	a.jobsMutex.RLock()
-	j := a.jobs[name]
-	a.jobsMutex.RUnlock()
+	j := a.getJob(name)
 	j.Schedule = schedule
 	if a.running {
 		a.newJob <- j
