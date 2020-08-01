@@ -35,11 +35,12 @@ func (a *Agenda) Define(name string, jobFunc func() error) {
 }
 
 // Schedule the next time the job should run
+// TODO
 func (a *Agenda) Schedule(name string, time string) error {
 	return nil
 }
 
-// RepeatEvery when the job should repeat
+// RepeatEvery define when the job should repeat
 func (a *Agenda) RepeatEvery(name string, spec string) error {
 	j, err := a.getJob(name)
 	if err != nil {
@@ -132,9 +133,7 @@ func (a *Agenda) Now(name string) error {
 	// 	log.Errorf("Error while running %v: %v", name, err)
 	// 	return err
 	// }
-	if err := job.StartJob(); err != nil {
-		return err
-	}
-	log.Infof("Completed job %v successfully", name)
+	job.ScheduleJobNow()
+	// log.Infof("Completed job %v successfully", name)
 	return nil
 }

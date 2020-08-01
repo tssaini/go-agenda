@@ -26,7 +26,8 @@ func TestStart(t *testing.T) {
 			running:    false,
 			stop:       make(chan struct{}),
 			newJob:     make(chan *job.Job),
-			cronParser: cron.ParseStandard}
+			cronParser: cron.ParseStandard,
+		}
 		a.Start()
 		time.Sleep(10 * time.Millisecond)
 		if !a.running {
@@ -34,6 +35,20 @@ func TestStart(t *testing.T) {
 		}
 	})
 
+	t.Run("Test running agenda twice", func(t *testing.T) {
+		a := Agenda{jobs: make(map[string]*job.Job),
+			jobsMutex:  &sync.RWMutex{},
+			running:    false,
+			stop:       make(chan struct{}),
+			newJob:     make(chan *job.Job),
+			cronParser: cron.ParseStandard}
+		a.Start()
+		time.Sleep(10 * time.Millisecond)
+		err := a.Start()
+		if err == nil {
+			t.Errorf("wanted err got %v", err)
+		}
+	})
 }
 
 func TestStop(t *testing.T) {
@@ -43,7 +58,8 @@ func TestStop(t *testing.T) {
 			running:    false,
 			stop:       make(chan struct{}),
 			newJob:     make(chan *job.Job),
-			cronParser: cron.ParseStandard}
+			cronParser: cron.ParseStandard,
+		}
 		a.Start()
 		time.Sleep(10 * time.Millisecond)
 		a.Stop()
@@ -53,4 +69,20 @@ func TestStop(t *testing.T) {
 		}
 	})
 
+}
+
+func TestDefine(t *testing.T) {
+	t.Run("Stop the agenda loop", func(t *testing.T) {
+		a := Agenda{jobs: make(map[string]*job.Job),
+			jobsMutex:  &sync.RWMutex{},
+			running:    false,
+			stop:       make(chan struct{}),
+			newJob:     make(chan *job.Job),
+			cronParser: cron.ParseStandard,
+		}
+		a.Define("TestJob", func() error { return nil })
+		if _, err := a.getJob("TestJob"); err != nil {
+			t.Errorf("wanted TestJob to be defined got %v", err)
+		}
+	})
 }
