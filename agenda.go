@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/tssaini/go-agenda/job"
@@ -26,39 +27,11 @@ func New() *Agenda {
 	return &a
 }
 
-func (a *Agenda) getJob(name string) *job.Job {
-	a.jobsMutex.RLock()
-	j := a.jobs[name]
-	a.jobsMutex.RUnlock()
-	return j
-}
-
-func (a *Agenda) addJob(name string, j *job.Job) {
-	a.jobsMutex.Lock()
-	a.jobs[name] = j
-	a.jobsMutex.Unlock()
-}
-
 // Define instantiate new job
 func (a *Agenda) Define(name string, jobFunc func() error) {
 	log.Infof("Defining job %v", name)
-	j := &job.Job{Name: name, JobFunc: jobFunc, Stop: make(chan struct{}), Running: false}
-	//TODO: check if the job already exists
+	j := job.New(name, jobFunc)
 	a.addJob(name, j)
-}
-
-// Now runs the job provided now
-func (a *Agenda) Now(name string) error {
-	log.Infof("Starting job %v", name)
-	job := a.getJob(name)
-	// err := job.JobFunc()
-	// if err != nil {
-	// 	log.Errorf("Error while running %v: %v", name, err)
-	// 	return err
-	// }
-	job.RunJob()
-	log.Infof("Completed job %v successfully", name)
-	return nil
 }
 
 // Schedule the next time the job should run
@@ -68,13 +41,15 @@ func (a *Agenda) Schedule(name string, time string) error {
 
 // RepeatEvery when the job should repeat
 func (a *Agenda) RepeatEvery(name string, spec string) error {
-	schedule, err := a.cronParser(spec)
+	j, err := a.getJob(name)
 	if err != nil {
 		return err
 	}
-	j := a.getJob(name)
-	j.Schedule = schedule
-	if a.running {
+	err = j.ScheduleJob(a.cronParser, spec)
+	if err != nil {
+		return err
+	}
+	if a.running && j.HasSchedule() {
 		a.newJob <- j
 	}
 	return nil
@@ -102,7 +77,11 @@ func (a *Agenda) run() error {
 	// run all jobs
 	a.jobsMutex.RLock()
 	for _, j := range a.jobs {
-		go j.LaunchJob()
+		if j.HasSchedule() {
+			if err := j.StartJob(); err != nil {
+				return err
+			}
+		}
 	}
 	a.jobsMutex.RUnlock()
 	for {
@@ -112,14 +91,50 @@ func (a *Agenda) run() error {
 			//stop all jobs
 			a.jobsMutex.RLock()
 			for _, j := range a.jobs {
-				if j.Running {
-					j.Stop <- struct{}{}
-				}
+				j.StopJob()
 			}
 			a.jobsMutex.RUnlock()
 			return nil
 		case j := <-a.newJob:
-			go j.LaunchJob()
+			if err := j.StartJob(); err != nil {
+				return err
+			}
 		}
 	}
+}
+
+func (a *Agenda) getJob(name string) (*job.Job, error) {
+	a.jobsMutex.RLock()
+	j, ok := a.jobs[name]
+	a.jobsMutex.RUnlock()
+	if ok {
+		return j, nil
+	}
+	return j, fmt.Errorf("Job %v does not exist", name)
+}
+
+func (a *Agenda) addJob(name string, j *job.Job) {
+	//TODO: check if the job already exists
+	a.jobsMutex.Lock()
+	a.jobs[name] = j
+	a.jobsMutex.Unlock()
+}
+
+// Now runs the job provided now
+func (a *Agenda) Now(name string) error {
+	log.Infof("Starting job %v", name)
+	job, err := a.getJob(name)
+	if err != nil {
+		return err
+	}
+	// err := job.JobFunc()
+	// if err != nil {
+	// 	log.Errorf("Error while running %v: %v", name, err)
+	// 	return err
+	// }
+	if err := job.StartJob(); err != nil {
+		return err
+	}
+	log.Infof("Completed job %v successfully", name)
+	return nil
 }
