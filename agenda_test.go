@@ -1,4 +1,4 @@
-package main
+package agenda
 
 import (
 	"sync"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/robfig/cron"
-	"github.com/tssaini/go-agenda/job"
 )
 
 // func TestRepeatEvery(t *testing.T) {
@@ -21,27 +20,27 @@ import (
 
 func TestStart(t *testing.T) {
 	t.Run("Starts the agenda loop", func(t *testing.T) {
-		a := Agenda{jobs: make(map[string]*job.Job),
+		a := Agenda{jobs: make(map[string]ScheduledTask),
 			jobsMutex:  &sync.RWMutex{},
 			running:    false,
 			stop:       make(chan struct{}),
-			newJob:     make(chan *job.Job),
+			newJob:     make(chan ScheduledTask),
 			cronParser: cron.ParseStandard,
 		}
 		a.Start()
-		time.Sleep(10 * time.Millisecond)
 		if !a.running {
 			t.Errorf("wanted running %v got %v", true, a.running)
 		}
 	})
 
 	t.Run("Test running agenda twice", func(t *testing.T) {
-		a := Agenda{jobs: make(map[string]*job.Job),
+		a := Agenda{jobs: make(map[string]ScheduledTask),
 			jobsMutex:  &sync.RWMutex{},
 			running:    false,
 			stop:       make(chan struct{}),
-			newJob:     make(chan *job.Job),
-			cronParser: cron.ParseStandard}
+			newJob:     make(chan ScheduledTask),
+			cronParser: cron.ParseStandard,
+		}
 		a.Start()
 		time.Sleep(10 * time.Millisecond)
 		err := a.Start()
@@ -53,11 +52,11 @@ func TestStart(t *testing.T) {
 
 func TestStop(t *testing.T) {
 	t.Run("Stop the agenda loop", func(t *testing.T) {
-		a := Agenda{jobs: make(map[string]*job.Job),
+		a := Agenda{jobs: make(map[string]ScheduledTask),
 			jobsMutex:  &sync.RWMutex{},
 			running:    false,
 			stop:       make(chan struct{}),
-			newJob:     make(chan *job.Job),
+			newJob:     make(chan ScheduledTask),
 			cronParser: cron.ParseStandard,
 		}
 		a.Start()
@@ -73,11 +72,11 @@ func TestStop(t *testing.T) {
 
 func TestDefine(t *testing.T) {
 	t.Run("Stop the agenda loop", func(t *testing.T) {
-		a := Agenda{jobs: make(map[string]*job.Job),
+		a := Agenda{jobs: make(map[string]ScheduledTask),
 			jobsMutex:  &sync.RWMutex{},
 			running:    false,
 			stop:       make(chan struct{}),
-			newJob:     make(chan *job.Job),
+			newJob:     make(chan ScheduledTask),
 			cronParser: cron.ParseStandard,
 		}
 		a.Define("TestJob", func() error { return nil })

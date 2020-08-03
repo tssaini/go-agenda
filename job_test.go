@@ -1,4 +1,4 @@
-package job
+package agenda
 
 import (
 	"fmt"
@@ -23,39 +23,39 @@ func parserMock(spec string) (cron.Schedule, error) {
 }
 
 func TestStartJob(t *testing.T) {
-	j := New("testJob", func() error {
+	j := NewJob("testJob", func() error {
 		return nil
 	})
 
 	t.Run("Should fail to start job without schedule", func(t *testing.T) {
-		err := j.StartJob()
+		err := j.Start()
 		if err == nil {
 			t.Errorf("wanted err but got %v", err)
 		}
 	})
 
 	t.Run("Should fail to start an already running job", func(t *testing.T) {
-		j.ScheduleJob(cron.ParseStandard, "* * * * *")
-		err := j.StartJob()
+		j.Schedule(cron.ParseStandard, "* * * * *")
+		err := j.Start()
 		if err != nil {
 			t.Errorf("failed to start job %v", err)
 		}
-		err = j.StartJob()
+		err = j.Start()
 		if err == nil {
 			t.Errorf("wanted err but got %v", err)
 		}
-		j.StopJob()
+		j.Stop()
 	})
 
 	t.Run("Should run the job", func(t *testing.T) {
 		parserCalls = nil
 		funcChan := make(chan struct{})
-		j := New("testJob", func() error {
+		j := NewJob("testJob", func() error {
 			funcChan <- struct{}{}
 			return nil
 		})
-		j.ScheduleJob(parserMock, "* * * * *")
-		err := j.StartJob()
+		j.Schedule(parserMock, "* * * * *")
+		err := j.Start()
 		if err != nil {
 			t.Errorf("failed to start job %v", err)
 		}
@@ -63,7 +63,7 @@ func TestStartJob(t *testing.T) {
 			t.Error("wanted testJob to be running")
 		}
 		time.Sleep(20 * time.Millisecond) // Allow the test to run
-		j.StopJob()
+		j.Stop()
 
 		select {
 		case <-funcChan:
@@ -75,14 +75,14 @@ func TestStartJob(t *testing.T) {
 }
 
 func TestScheduleJob(t *testing.T) {
-	j := New("testJob", func() error {
+	j := NewJob("testJob", func() error {
 		return nil
 	})
 
 	t.Run("Should schedule job", func(t *testing.T) {
 		parserCalls = nil
 		spec := "* * * * *"
-		err := j.ScheduleJob(parserMock, spec)
+		err := j.Schedule(parserMock, spec)
 		if err != nil {
 			t.Errorf("wanted err but got %v", err)
 		}
@@ -95,15 +95,15 @@ func TestScheduleJob(t *testing.T) {
 func TestStopJob(t *testing.T) {
 	t.Run("Should stop the job", func(t *testing.T) {
 		parserCalls = nil
-		j := New("testJob", func() error {
+		j := NewJob("testJob", func() error {
 			return nil
 		})
-		j.ScheduleJob(parserMock, "* * * * *")
-		j.StartJob()
+		j.Schedule(parserMock, "* * * * *")
+		j.Start()
 		if !j.isRunning() {
 			t.Error("testJob is not running")
 		}
-		j.StopJob()
+		j.Stop()
 		if j.isRunning() {
 			t.Error("wanted testJob to be stopped")
 		}

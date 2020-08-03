@@ -8,5 +8,6 @@ require (
 	github.com/rakyll/gotest v0.0.5 // indirect
 	github.com/robfig/cron v1.2.0
 	github.com/sirupsen/logrus v1.6.0
+	github.com/stretchr/testify v1.6.1
 	golang.org/x/sys v0.0.0-20200728102440-3e129f6d46b1 // indirect
 )

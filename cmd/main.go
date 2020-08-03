@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"time"
+
+	"github.com/tssaini/go-agenda"
 )
 
 func main() {
-	agenda := New()
+	agenda := agenda.New()
 
 	agenda.Define("print hello", func() error {
 		fmt.Println("Hello world")
@@ -16,9 +18,8 @@ func main() {
 	// agenda.Now("print hello")
 
 	//every hour
-	agenda.RepeatEvery("print hello", "15 * * * *")
+	agenda.RepeatEvery("print hello", "@every 2m")
 	agenda.Start()
-	time.Sleep(1 * time.Second)
 	agenda.Define("print bad", func() error {
 		fmt.Println("BAD")
 		return nil
