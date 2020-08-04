@@ -8,8 +8,10 @@ import (
 )
 
 func main() {
-	agenda := agenda.New()
-
+	agenda, err := agenda.New()
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	}
 	agenda.Define("print hello", func() error {
 		fmt.Println("Hello world")
 		return nil

@@ -1,6 +1,10 @@
 package sqldb
 
-import "database/sql"
+import (
+	"database/sql"
+
+	_ "github.com/go-sql-driver/mysql"
+)
 
 // DB sql db connection
 type DB struct {

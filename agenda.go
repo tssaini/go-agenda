@@ -5,34 +5,44 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/tssaini/go-agenda/storage/sqldb"
+
+	"github.com/tssaini/go-agenda/scheduled"
+
 	"github.com/robfig/cron"
 	log "github.com/sirupsen/logrus"
 )
 
 // Agenda struct stores all jobs
 type Agenda struct {
-	jobs       map[string]ScheduledTask
+	jobs       map[string]scheduled.Task
 	jobsMutex  *sync.RWMutex
 	running    bool
 	stop       chan struct{}
-	newJob     chan ScheduledTask
+	newJob     chan scheduled.Task
 	cronParser func(string) (cron.Schedule, error)
+	db         *sqldb.DB
 }
 
 // New creates and returns new agenda object
-func New() *Agenda {
-	a := Agenda{jobs: make(map[string]ScheduledTask), jobsMutex: &sync.RWMutex{}, running: false, stop: make(chan struct{}), newJob: make(chan ScheduledTask), cronParser: cron.ParseStandard}
+func New() (*Agenda, error) {
+	d, err := sqldb.NewDB("mysql", "root:googlechrome@/goagenda")
+	if err != nil {
+		return nil, err
+	}
+
+	a := Agenda{jobs: make(map[string]scheduled.Task), jobsMutex: &sync.RWMutex{}, running: false, stop: make(chan struct{}), newJob: make(chan scheduled.Task), cronParser: cron.ParseStandard, db: d}
 	formatter := &log.TextFormatter{
 		FullTimestamp: true,
 	}
 	log.SetFormatter(formatter)
-	return &a
+	return &a, nil
 }
 
 // Define new job
 func (a *Agenda) Define(name string, jobFunc func() error) {
 	log.Infof("Defining job %v", name)
-	j := NewJob(name, jobFunc)
+	j, _ := scheduled.NewJob(name, jobFunc, a.db)
 	a.addJob(name, j)
 }
 
@@ -52,7 +62,7 @@ func (a *Agenda) RepeatEvery(name string, spec string) error {
 	if err != nil {
 		return err
 	}
-	if a.running && j.HasSchedule() {
+	if a.running {
 		a.newJob <- j
 	}
 	return nil
@@ -106,7 +116,7 @@ func (a *Agenda) run() error {
 	}
 }
 
-func (a *Agenda) getJob(name string) (ScheduledTask, error) {
+func (a *Agenda) getJob(name string) (scheduled.Task, error) {
 	a.jobsMutex.RLock()
 	j, ok := a.jobs[name]
 	a.jobsMutex.RUnlock()
@@ -116,7 +126,7 @@ func (a *Agenda) getJob(name string) (ScheduledTask, error) {
 	return j, fmt.Errorf("Job %v does not exist", name)
 }
 
-func (a *Agenda) addJob(name string, j ScheduledTask) {
+func (a *Agenda) addJob(name string, j scheduled.Task) {
 	//TODO: check if the job already exists
 	a.jobsMutex.Lock()
 	a.jobs[name] = j
