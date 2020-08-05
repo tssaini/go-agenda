@@ -91,19 +91,21 @@ func (db *DB) SaveJob(j *scheduled.Job) error {
 	query := "SELECT name FROM agendaJob where name = ?"
 	var jobName string
 	err := db.QueryRow(query, jobName).Scan(&jobName)
+
+	lastErr := fmt.Sprintf("%v", j.LastErr)
+
 	if err != nil {
 		sqlStatement := "UPDATE agendaJob SET nextRun = ?, lastRun = ?, scheduled = ?, jobRunning = ?, lastErr = ? WHERE name = ?"
-		_, err := db.Exec(sqlStatement, j.NextRun.Format("2006-01-02 15:04:05"), j.LastRun.Format("2006-01-02 15:04:05"), j.Scheduled, j.JobRunning, j.LastErr, j.Name)
+		_, err := db.Exec(sqlStatement, j.NextRun.Format("2006-01-02 15:04:05"), j.LastRun.Format("2006-01-02 15:04:05"), j.Scheduled, j.JobRunning, lastErr, j.Name)
 		if err != nil {
 			return err
 		}
 	} else {
 		sqlStatement := "INSERT INTO agendaJob (name, nextRun, lastRun, scheduled, jobRunning, lastErr) VALUES (?, ?, ?, ?, ?, ?)"
-		_, err := db.Exec(sqlStatement, j.Name, j.NextRun.Format("2006-01-02 15:04:05"), j.LastRun.Format("2006-01-02 15:04:05"), j.Scheduled, j.JobRunning, j.LastErr)
+		_, err := db.Exec(sqlStatement, j.Name, j.NextRun.Format("2006-01-02 15:04:05"), j.LastRun.Format("2006-01-02 15:04:05"), j.Scheduled, j.JobRunning, lastErr)
 		if err != nil {
 			return err
 		}
 	}
-
 	return nil
 }

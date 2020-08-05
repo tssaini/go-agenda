@@ -83,10 +83,6 @@ func (j *Job) Start() error {
 
 	go j.run()
 	<-j.StartedChan
-	err := j.Repository.SaveJob(j)
-	if err != nil {
-		log.Errorf("%v", err)
-	}
 	return nil
 }
 
@@ -95,16 +91,16 @@ func (j *Job) run() {
 	defer j.setScheduled(false)
 	j.StartedChan <- struct{}{}
 
-	if j.NextRun != (time.Time{}) && j.NextRun.Before(time.Now()) {
+	if j.NextRun != (time.Time{}) && j.NextRun.Before(time.Now().UTC()) {
 		j.runJobFunc()
 	}
 
 	for {
-		if j.NextRun == (time.Time{}) {
+		if j.NextRun == (time.Time{}) || j.NextRun.Before(time.Now().UTC()) {
 			j.calcNextRun()
 		}
 
-		d := j.NextRun.Sub(time.Now())
+		d := j.NextRun.Sub(time.Now().UTC())
 
 		select {
 		case <-j.StopChan:
@@ -112,11 +108,6 @@ func (j *Job) run() {
 		case <-time.After(d):
 			//Run job here
 			j.runJobFunc()
-			j.calcNextRun()
-			err := j.Repository.SaveJob(j)
-			if err != nil {
-				log.Errorf("%v", err)
-			}
 		}
 	}
 }
@@ -128,8 +119,6 @@ func (j *Job) Schedule(parser func(string) (cron.Schedule, error), spec string) 
 		return err
 	}
 	j.Scheduler = schedule
-	j.calcNextRun()
-	err = j.Repository.SaveJob(j)
 	if err != nil {
 		log.Errorf("%v", err)
 	}
@@ -137,7 +126,11 @@ func (j *Job) Schedule(parser func(string) (cron.Schedule, error), spec string) 
 }
 
 func (j *Job) calcNextRun() {
-	j.NextRun = j.Scheduler.Next(time.Now())
+	j.NextRun = j.Scheduler.Next(time.Now().UTC())
+	err := j.Repository.SaveJob(j)
+	if err != nil {
+		log.Errorf("%v", err)
+	}
 }
 
 // runJobFunc runs the job function
@@ -147,7 +140,7 @@ func (j *Job) runJobFunc() {
 	defer j.JobMutex.Unlock()
 
 	j.JobRunning = true
-	j.LastRun = time.Now()
+	j.LastRun = time.Now().UTC()
 	err := j.Repository.SaveJob(j)
 	if err != nil {
 		log.Errorf("%v", err)
@@ -193,4 +186,8 @@ func (j *Job) setScheduled(running bool) {
 	j.AccessMutex.Lock()
 	j.Scheduled = running
 	j.AccessMutex.Unlock()
+	err := j.Repository.SaveJob(j)
+	if err != nil {
+		log.Errorf("%v", err)
+	}
 }
