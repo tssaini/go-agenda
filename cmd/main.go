@@ -25,16 +25,15 @@ func main() {
 		return nil
 	})
 
-	// agenda.Now("print hello")
-
-	//every hour
 	agenda.RepeatEvery("print hello", "@every 2m")
 	agenda.Start()
+	
 	agenda.Define("print bad", func() error {
 		fmt.Println("BAD")
 		time.Sleep(10 * time.Second)
 		return errors.New("Unable to run Print bad")
 	})
 	agenda.RepeatEvery("print bad", "* * * * *")
+	
 	time.Sleep(5000 * time.Minute)
 }
