@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	db, err := sql.Open("mysql", "root:googlechrome@/goagenda")
+	db, err := sql.Open("mysql", "user:test@/goagenda")
 	if err != nil {
 		fmt.Printf("%v\n", err)
 	}
