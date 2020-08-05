@@ -1,15 +1,25 @@
 package main
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/tssaini/go-agenda"
 )
 
 func main() {
-	agenda := agenda.New()
+	db, err := sql.Open("mysql", "root:googlechrome@/goagenda")
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	}
 
+	agenda, err := agenda.New(db)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	}
 	agenda.Define("print hello", func() error {
 		fmt.Println("Hello world")
 		return nil
@@ -22,7 +32,8 @@ func main() {
 	agenda.Start()
 	agenda.Define("print bad", func() error {
 		fmt.Println("BAD")
-		return nil
+		time.Sleep(10 * time.Second)
+		return errors.New("Unable to run Print bad")
 	})
 	agenda.RepeatEvery("print bad", "* * * * *")
 	time.Sleep(5000 * time.Minute)

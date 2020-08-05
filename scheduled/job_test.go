@@ -1,4 +1,4 @@
-package agenda
+package scheduled
 
 import (
 	"fmt"
@@ -8,24 +8,11 @@ import (
 	"github.com/robfig/cron"
 )
 
-type scheduleMock struct {
-}
-
-func (s scheduleMock) Next(ti time.Time) time.Time {
-	return time.Now().Add(10 * time.Millisecond)
-}
-
-var parserCalls []string
-
-func parserMock(spec string) (cron.Schedule, error) {
-	parserCalls = append(parserCalls, spec)
-	return scheduleMock{}, nil
-}
-
 func TestStartJob(t *testing.T) {
-	j := NewJob("testJob", func() error {
+	jr := &JobRepoMock{}
+	j, _ := NewJob("testJob", func() error {
 		return nil
-	})
+	}, jr)
 
 	t.Run("Should fail to start job without schedule", func(t *testing.T) {
 		err := j.Start()
@@ -50,16 +37,16 @@ func TestStartJob(t *testing.T) {
 	t.Run("Should run the job", func(t *testing.T) {
 		parserCalls = nil
 		funcChan := make(chan struct{})
-		j := NewJob("testJob", func() error {
+		j, err := NewJob("testJob", func() error {
 			funcChan <- struct{}{}
 			return nil
-		})
+		}, jr)
 		j.Schedule(parserMock, "* * * * *")
-		err := j.Start()
+		err = j.Start()
 		if err != nil {
 			t.Errorf("failed to start job %v", err)
 		}
-		if !j.isRunning() {
+		if !j.isScheduled() {
 			t.Error("wanted testJob to be running")
 		}
 		time.Sleep(20 * time.Millisecond) // Allow the test to run

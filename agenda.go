@@ -1,9 +1,15 @@
 package agenda
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"sync"
+	"time"
+
+	"github.com/tssaini/go-agenda/storage/sqldb"
+
+	"github.com/tssaini/go-agenda/scheduled"
 
 	"github.com/robfig/cron"
 	log "github.com/sirupsen/logrus"
@@ -11,34 +17,42 @@ import (
 
 // Agenda struct stores all jobs
 type Agenda struct {
-	jobs       map[string]ScheduledTask
+	jobs       map[string]scheduled.Task
 	jobsMutex  *sync.RWMutex
 	running    bool
-	stop       chan struct{}
-	newJob     chan ScheduledTask
 	cronParser func(string) (cron.Schedule, error)
+	jr         scheduled.JobRepository
 }
 
 // New creates and returns new agenda object
-func New() *Agenda {
-	a := Agenda{jobs: make(map[string]ScheduledTask), jobsMutex: &sync.RWMutex{}, running: false, stop: make(chan struct{}), newJob: make(chan ScheduledTask), cronParser: cron.ParseStandard}
+func New(db *sql.DB) (*Agenda, error) {
+	jr, err := sqldb.NewJobRepository(db)
+	if err != nil {
+		return nil, err
+	}
+
+	a := Agenda{jobs: make(map[string]scheduled.Task), jobsMutex: &sync.RWMutex{}, running: false, cronParser: cron.ParseStandard, jr: jr}
 	formatter := &log.TextFormatter{
 		FullTimestamp: true,
 	}
 	log.SetFormatter(formatter)
-	return &a
+	return &a, nil
 }
 
 // Define new job
 func (a *Agenda) Define(name string, jobFunc func() error) {
 	log.Infof("Defining job %v", name)
-	j := NewJob(name, jobFunc)
+	j, err := scheduled.NewJob(name, jobFunc, a.jr)
+	if err != nil {
+		log.Errorf("Unable to define job %v: %v", name, err)
+		return
+	}
 	a.addJob(name, j)
 }
 
 // Schedule the next time the job should run
 // TODO
-func (a *Agenda) Schedule(name string, time string) error {
+func (a *Agenda) Schedule(name string, time time.Time) error {
 	return nil
 }
 
@@ -52,8 +66,11 @@ func (a *Agenda) RepeatEvery(name string, spec string) error {
 	if err != nil {
 		return err
 	}
-	if a.running && j.HasSchedule() {
-		a.newJob <- j
+	if a.running {
+		err := j.Start()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -63,20 +80,7 @@ func (a *Agenda) Start() error {
 	if a.running {
 		return errors.New("Agenda is already running")
 	}
-	go a.run()
 	a.running = true
-	return nil
-}
-
-// Stop agenda
-func (a *Agenda) Stop() error {
-	a.stop <- struct{}{}
-	a.running = false
-	return nil
-}
-
-func (a *Agenda) run() error {
-	log.Infof("Running agenda loop")
 	// run all jobs
 	a.jobsMutex.RLock()
 	for _, j := range a.jobs {
@@ -87,26 +91,23 @@ func (a *Agenda) run() error {
 		}
 	}
 	a.jobsMutex.RUnlock()
-	for {
-		select {
-		case <-a.stop:
-			log.Infof("Stopping agenda loop")
-			//stop all jobs
-			a.jobsMutex.RLock()
-			for _, j := range a.jobs {
-				j.Stop()
-			}
-			a.jobsMutex.RUnlock()
-			return nil
-		case j := <-a.newJob:
-			if err := j.Start(); err != nil {
-				return err
-			}
-		}
-	}
+
+	return nil
 }
 
-func (a *Agenda) getJob(name string) (ScheduledTask, error) {
+// Stop agenda
+func (a *Agenda) Stop() error {
+	//stop all jobs
+	a.jobsMutex.RLock()
+	for _, j := range a.jobs {
+		j.Stop()
+	}
+	a.jobsMutex.RUnlock()
+	a.running = false
+	return nil
+}
+
+func (a *Agenda) getJob(name string) (scheduled.Task, error) {
 	a.jobsMutex.RLock()
 	j, ok := a.jobs[name]
 	a.jobsMutex.RUnlock()
@@ -116,7 +117,7 @@ func (a *Agenda) getJob(name string) (ScheduledTask, error) {
 	return j, fmt.Errorf("Job %v does not exist", name)
 }
 
-func (a *Agenda) addJob(name string, j ScheduledTask) {
+func (a *Agenda) addJob(name string, j scheduled.Task) {
 	//TODO: check if the job already exists
 	a.jobsMutex.Lock()
 	a.jobs[name] = j
@@ -130,12 +131,8 @@ func (a *Agenda) Now(name string) error {
 	if err != nil {
 		return err
 	}
-	// err := job.JobFunc()
-	// if err != nil {
-	// 	log.Errorf("Error while running %v: %v", name, err)
-	// 	return err
-	// }
+
 	job.ScheduleNow()
-	// log.Infof("Completed job %v successfully", name)
+
 	return nil
 }

@@ -1,6 +1,8 @@
-package mocks
+package scheduled
 
 import (
+	"time"
+
 	"github.com/robfig/cron"
 	"github.com/stretchr/testify/mock"
 )
@@ -33,4 +35,42 @@ func (j *JobMock) ScheduleNow() {
 //HasSchedule implements HasSchedule() of ScheduleTask Interface
 func (j *JobMock) HasSchedule() bool {
 	return false
+}
+
+
+
+// JobRepoMock mock the db
+type JobRepoMock struct {
+	mock.Mock
+}
+
+// FindAllJobs mock the FindAllJob
+func (jr *JobRepoMock) FindAllJobs() ([]*Job, error) {
+	return nil, nil
+}
+
+// FindJobByName mock the FindJobByName
+func (jr *JobRepoMock) FindJobByName(jobName string) (*Job, error) {
+	return nil, nil
+}
+
+// SaveJob mock the SaveJob
+func (jr *JobRepoMock) SaveJob(j *Job) error {
+	return nil
+}
+
+
+
+type scheduleMock struct {
+}
+
+func (s scheduleMock) Next(ti time.Time) time.Time {
+	return time.Now().Add(10 * time.Millisecond)
+}
+
+var parserCalls []string
+
+func parserMock(spec string) (cron.Schedule, error) {
+	parserCalls = append(parserCalls, spec)
+	return scheduleMock{}, nil
 }
