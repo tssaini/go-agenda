@@ -20,6 +20,19 @@ func NewJobRepository(db *sql.DB) (*JobRepository, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
+
+	sqlStatement := `CREATE TABLE IF NOT EXISTS agendaJob (
+		name VARCHAR(40) PRIMARY KEY, 
+		nextRun DATETIME, 
+		lastRun DATETIME,
+		scheduled BOOLEAN,
+		jobRunning BOOLEAN,
+		lastErr VARCHAR(255)
+	)`
+	_, err := db.Exec(sqlStatement)
+	if err != nil {
+		return nil, err
+	}
 	return &JobRepository{db}, nil
 }
 
@@ -103,11 +116,11 @@ func (db *JobRepository) SaveJob(j *scheduled.Job) error {
 
 	query := "SELECT name FROM agendaJob where name = ?"
 	var jobName string
-	err := db.QueryRow(query, jobName).Scan(&jobName)
+	err := db.QueryRow(query, j.Name).Scan(&jobName)
 
 	lastErr := fmt.Sprintf("%v", j.LastErr)
 
-	if err != nil {
+	if err == nil {
 		sqlStatement := "UPDATE agendaJob SET nextRun = ?, lastRun = ?, scheduled = ?, jobRunning = ?, lastErr = ? WHERE name = ?"
 		_, err := db.Exec(sqlStatement, j.NextRun.Format("2006-01-02 15:04:05"), j.LastRun.Format("2006-01-02 15:04:05"), j.Scheduled, j.JobRunning, lastErr, j.Name)
 		if err != nil {
