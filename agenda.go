@@ -42,7 +42,11 @@ func New() (*Agenda, error) {
 // Define new job
 func (a *Agenda) Define(name string, jobFunc func() error) {
 	log.Infof("Defining job %v", name)
-	j, _ := scheduled.NewJob(name, jobFunc, a.db)
+	j, err := scheduled.NewJob(name, jobFunc, a.db)
+	if err != nil {
+		log.Errorf("Unable to define job %v: %v", name, err)
+		return
+	}
 	a.addJob(name, j)
 }
 

@@ -32,7 +32,7 @@ type Job struct {
 	Scheduled  bool
 	JobRunning bool
 
-	accessMutex sync.RWMutex
+	AccessMutex sync.RWMutex
 	LastErr     error
 	Repository  JobRepository
 }
@@ -53,17 +53,22 @@ func NewJob(name string, jobFunc func() error, r JobRepository) (*Job, error) {
 
 	existingJob, err := r.FindJobByName(name)
 	if err != nil {
-		return nil, err
+		log.Errorf("%v", err)
 	}
 	//job exists in the db
 	if existingJob != nil {
+		log.Infof("Job %v found in db", name)
 		existingJob.JobFunc = jobFunc
 		existingJob.Repository = r
+		existingJob.Scheduled = false
 		return existingJob, nil
 	}
-
-	j := &Job{Name: name, JobFunc: jobFunc, StopChan: make(chan struct{}), StartedChan: make(chan struct{}), Scheduled: false, JobRunning: false, JobMutex: sync.Mutex{}, accessMutex: sync.RWMutex{}, Repository: r}
-	r.SaveJob(j)
+	log.Infof("Job %v not found in db", name)
+	j := &Job{Name: name, JobFunc: jobFunc, StopChan: make(chan struct{}), StartedChan: make(chan struct{}), Scheduled: false, JobRunning: false, JobMutex: sync.Mutex{}, AccessMutex: sync.RWMutex{}, Repository: r}
+	err = r.SaveJob(j)
+	if err != nil {
+		log.Errorf("%v", err)
+	}
 	return j, nil
 }
 
@@ -78,11 +83,16 @@ func (j *Job) Start() error {
 
 	go j.run()
 	<-j.StartedChan
+	err := j.Repository.SaveJob(j)
+	if err != nil {
+		log.Errorf("%v", err)
+	}
 	return nil
 }
 
 func (j *Job) run() {
 	j.setScheduled(true)
+	defer j.setScheduled(false)
 	j.StartedChan <- struct{}{}
 
 	if j.NextRun != (time.Time{}) && j.NextRun.Before(time.Now()) {
@@ -103,6 +113,10 @@ func (j *Job) run() {
 			//Run job here
 			j.runJobFunc()
 			j.calcNextRun()
+			err := j.Repository.SaveJob(j)
+			if err != nil {
+				log.Errorf("%v", err)
+			}
 		}
 	}
 }
@@ -117,7 +131,7 @@ func (j *Job) Schedule(parser func(string) (cron.Schedule, error), spec string) 
 	j.calcNextRun()
 	err = j.Repository.SaveJob(j)
 	if err != nil {
-		return err
+		log.Errorf("%v", err)
 	}
 	return nil
 }
@@ -134,11 +148,17 @@ func (j *Job) runJobFunc() {
 
 	j.JobRunning = true
 	j.LastRun = time.Now()
-	j.Repository.SaveJob(j)
+	err := j.Repository.SaveJob(j)
+	if err != nil {
+		log.Errorf("%v", err)
+	}
 
 	j.LastErr = j.JobFunc()
 	j.JobRunning = false
-	j.Repository.SaveJob(j)
+	err = j.Repository.SaveJob(j)
+	if err != nil {
+		log.Errorf("%v", err)
+	}
 }
 
 // ScheduleNow runs the job now
@@ -164,13 +184,13 @@ func (j *Job) HasSchedule() bool {
 }
 
 func (j *Job) isScheduled() bool {
-	j.accessMutex.RLock()
-	defer j.accessMutex.RUnlock()
+	j.AccessMutex.RLock()
+	defer j.AccessMutex.RUnlock()
 	return j.Scheduled
 }
 
 func (j *Job) setScheduled(running bool) {
-	j.accessMutex.Lock()
+	j.AccessMutex.Lock()
 	j.Scheduled = running
-	j.accessMutex.Unlock()
+	j.AccessMutex.Unlock()
 }
