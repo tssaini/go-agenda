@@ -10,6 +10,19 @@ import (
 	"github.com/tssaini/go-agenda/scheduled"
 )
 
+// JobRepository sql db impl for job repository
+type JobRepository struct {
+	*sql.DB
+}
+
+// NewJobRepository create new job respoitory given sql connection
+func NewJobRepository(db *sql.DB) (*JobRepository, error) {
+	if err := db.Ping(); err != nil {
+		return nil, err
+	}
+	return &JobRepository{db}, nil
+}
+
 // Job struct represents the db
 type Job struct {
 	Name       string
@@ -21,7 +34,7 @@ type Job struct {
 }
 
 // FindAllJobs lists all the job from db
-func (db *DB) FindAllJobs() ([]*scheduled.Job, error) {
+func (db *JobRepository) FindAllJobs() ([]*scheduled.Job, error) {
 	// Execute the query
 	query := "SELECT * FROM agendaJob"
 	results, err := db.Query(query)
@@ -49,7 +62,7 @@ func (db *DB) FindAllJobs() ([]*scheduled.Job, error) {
 }
 
 // FindJobByName returns the job given the name
-func (db *DB) FindJobByName(jobName string) (*scheduled.Job, error) {
+func (db *JobRepository) FindJobByName(jobName string) (*scheduled.Job, error) {
 	fmt.Println("FindJobByName")
 	var jobResult Job
 	var lastErr, nextRun, lastRun sql.NullString
@@ -85,7 +98,7 @@ func (db *DB) FindJobByName(jobName string) (*scheduled.Job, error) {
 }
 
 // SaveJob saves the provided job to db
-func (db *DB) SaveJob(j *scheduled.Job) error {
+func (db *JobRepository) SaveJob(j *scheduled.Job) error {
 	fmt.Println("SaveJob")
 
 	query := "SELECT name FROM agendaJob where name = ?"

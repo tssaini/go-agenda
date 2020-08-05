@@ -1,15 +1,22 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/tssaini/go-agenda"
 )
 
 func main() {
-	agenda, err := agenda.New()
+	db, err := sql.Open("mysql", "root:googlechrome@/goagenda")
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	}
+
+	agenda, err := agenda.New(db)
 	if err != nil {
 		fmt.Printf("%v\n", err)
 	}
