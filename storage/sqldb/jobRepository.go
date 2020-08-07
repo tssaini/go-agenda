@@ -47,6 +47,7 @@ type Job struct {
 }
 
 // FindAllJobs lists all the job from db
+// TODO
 func (db *JobRepository) FindAllJobs() ([]*scheduled.Job, error) {
 	// Execute the query
 	query := "SELECT * FROM agendaJob"

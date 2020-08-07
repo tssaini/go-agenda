@@ -37,8 +37,6 @@ func (j *JobMock) HasSchedule() bool {
 	return false
 }
 
-
-
 // JobRepoMock mock the db
 type JobRepoMock struct {
 	mock.Mock
@@ -46,20 +44,24 @@ type JobRepoMock struct {
 
 // FindAllJobs mock the FindAllJob
 func (jr *JobRepoMock) FindAllJobs() ([]*Job, error) {
-	return nil, nil
+	args := jr.Called()
+	return args.Get(0).([]*Job), args.Error(1)
 }
 
 // FindJobByName mock the FindJobByName
 func (jr *JobRepoMock) FindJobByName(jobName string) (*Job, error) {
-	return nil, nil
+	args := jr.Called(jobName)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*Job), args.Error(1)
 }
 
 // SaveJob mock the SaveJob
 func (jr *JobRepoMock) SaveJob(j *Job) error {
-	return nil
+	args := jr.Called(&Job{Name: j.Name, NextRun: j.NextRun, LastRun: j.LastRun, Scheduled: j.Scheduled, JobRunning: j.JobRunning, LastErr: j.LastErr})
+	return args.Error(0)
 }
-
-
 
 type scheduleMock struct {
 }
