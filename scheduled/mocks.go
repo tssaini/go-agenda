@@ -59,20 +59,23 @@ func (jr *JobRepoMock) FindJobByName(jobName string) (*Job, error) {
 
 // SaveJob mock the SaveJob
 func (jr *JobRepoMock) SaveJob(j *Job) error {
-	args := jr.Called(&Job{Name: j.Name, NextRun: j.NextRun, LastRun: j.LastRun, Scheduled: j.Scheduled, JobRunning: j.JobRunning, LastErr: j.LastErr})
+	args := jr.Called(&Job{Name: j.Name, NextRun: j.NextRun, Scheduled: j.Scheduled, JobRunning: j.JobRunning, LastErr: j.LastErr})
 	return args.Error(0)
 }
 
 type scheduleMock struct {
+	mock.Mock
 }
 
-func (s scheduleMock) Next(ti time.Time) time.Time {
-	return time.Now().Add(10 * time.Millisecond)
+func (s *scheduleMock) Next(ti time.Time) time.Time {
+	// return time.Now().Add(10 * time.Millisecond)
+	args := s.Called()
+	return args.Get(0).(time.Time)
 }
 
-var parserCalls []string
+// var parserCalls []string
 
-func parserMock(spec string) (cron.Schedule, error) {
-	parserCalls = append(parserCalls, spec)
-	return scheduleMock{}, nil
-}
+// func parserMock(spec string) (cron.Schedule, error) {
+// 	parserCalls = append(parserCalls, spec)
+// 	return &scheduleMock{}, nil
+// }
