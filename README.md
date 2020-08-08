@@ -15,7 +15,7 @@ agenda.Define("print hello", func() error {
     fmt.Println("Hello world")
     return nil
 })
-
+// Will run the job at the beginning of every minute
 agenda.RepeatEvery("print hello", "* * * * *")
 agenda.Start()
 ```
