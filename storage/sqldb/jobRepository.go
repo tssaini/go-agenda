@@ -93,12 +93,16 @@ func (db *JobRepository) FindJobByName(jobName string) (*scheduled.Job, error) {
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		jobResult.LastRun = time.Time{}
 	}
 	if nextRun.Valid {
 		jobResult.NextRun, err = time.Parse("2006-01-02 15:04:05", nextRun.String)
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		jobResult.NextRun = time.Time{}
 	}
 	if lastErr.Valid {
 		jobResult.LastErr = errors.New(lastErr.String)
