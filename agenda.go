@@ -54,8 +54,8 @@ func (a *Agenda) Define(name string, jobFunc func() error) error {
 // 	return nil
 // }
 
-// RepeatEvery define when the job should repeat 
-// spec is a cron formated string
+// RepeatEvery define when the job should repeat.
+// The spec parameter is a cron formated string which specifies when the job is run.
 func (a *Agenda) RepeatEvery(name string, spec string) error {
 	j, err := a.getJob(name)
 	if err != nil {
