@@ -38,15 +38,14 @@ func New(db *sql.DB) (*Agenda, error) {
 	return &a, nil
 }
 
-// Define new job
-func (a *Agenda) Define(name string, jobFunc func() error) {
-	log.Infof("Defining job %v", name)
+// Define a new job
+func (a *Agenda) Define(name string, jobFunc func() error) error {
 	j, err := scheduled.NewJob(name, jobFunc, a.jr)
 	if err != nil {
-		log.Errorf("Unable to define job %v: %v", name, err)
-		return
+		return err
 	}
 	a.addJob(name, j)
+	return nil
 }
 
 // Schedule the next time the job should run
@@ -55,7 +54,8 @@ func (a *Agenda) Define(name string, jobFunc func() error) {
 // 	return nil
 // }
 
-// RepeatEvery define when the job should repeat
+// RepeatEvery define when the job should repeat 
+// spec is a cron formated string
 func (a *Agenda) RepeatEvery(name string, spec string) error {
 	j, err := a.getJob(name)
 	if err != nil {
@@ -74,7 +74,7 @@ func (a *Agenda) RepeatEvery(name string, spec string) error {
 	return nil
 }
 
-// Start agenda
+// Start agenda - schedules all defined jobs
 func (a *Agenda) Start() error {
 	if a.running {
 		return errors.New("Agenda is already running")
@@ -94,7 +94,7 @@ func (a *Agenda) Start() error {
 	return nil
 }
 
-// Stop agenda
+// Stop all jobs defined
 func (a *Agenda) Stop() error {
 	//stop all jobs
 	a.jobsMutex.RLock()
@@ -123,9 +123,8 @@ func (a *Agenda) addJob(name string, j scheduled.Task) {
 	a.jobsMutex.Unlock()
 }
 
-// Now runs the job provided now
+// Now runs the provided job
 func (a *Agenda) Now(name string) error {
-	log.Infof("Starting job %v", name)
 	job, err := a.getJob(name)
 	if err != nil {
 		return err
