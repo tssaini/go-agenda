@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/tssaini/go-agenda/storage/sqldb"
 
@@ -52,9 +51,9 @@ func (a *Agenda) Define(name string, jobFunc func() error) {
 
 // Schedule the next time the job should run
 // TODO
-func (a *Agenda) Schedule(name string, time time.Time) error {
-	return nil
-}
+// func (a *Agenda) Schedule(name string, time time.Time) error {
+// 	return nil
+// }
 
 // RepeatEvery define when the job should repeat
 func (a *Agenda) RepeatEvery(name string, spec string) error {
