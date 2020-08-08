@@ -1,6 +1,8 @@
 # go-agenda
 Persistent job scheduling for Golang.
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/tssaini/go-agenda)](https://goreportcard.com/report/github.com/tssaini/go-agenda)
+
 ## Usage
 
 ```go
