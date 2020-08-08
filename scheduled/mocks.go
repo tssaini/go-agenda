@@ -37,8 +37,6 @@ func (j *JobMock) HasSchedule() bool {
 	return false
 }
 
-
-
 // JobRepoMock mock the db
 type JobRepoMock struct {
 	mock.Mock
@@ -46,31 +44,38 @@ type JobRepoMock struct {
 
 // FindAllJobs mock the FindAllJob
 func (jr *JobRepoMock) FindAllJobs() ([]*Job, error) {
-	return nil, nil
+	args := jr.Called()
+	return args.Get(0).([]*Job), args.Error(1)
 }
 
 // FindJobByName mock the FindJobByName
 func (jr *JobRepoMock) FindJobByName(jobName string) (*Job, error) {
-	return nil, nil
+	args := jr.Called(jobName)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*Job), args.Error(1)
 }
 
 // SaveJob mock the SaveJob
 func (jr *JobRepoMock) SaveJob(j *Job) error {
-	return nil
+	args := jr.Called(&Job{Name: j.Name, NextRun: j.GetNextRun(), Scheduled: j.IsScheduled(), JobRunning: j.IsRunning(), LastErr: j.GetLastErr()})
+	return args.Error(0)
 }
-
-
 
 type scheduleMock struct {
+	mock.Mock
 }
 
-func (s scheduleMock) Next(ti time.Time) time.Time {
-	return time.Now().Add(10 * time.Millisecond)
+func (s *scheduleMock) Next(ti time.Time) time.Time {
+	// return time.Now().Add(10 * time.Millisecond)
+	args := s.Called()
+	return args.Get(0).(time.Time)
 }
 
-var parserCalls []string
+// var parserCalls []string
 
-func parserMock(spec string) (cron.Schedule, error) {
-	parserCalls = append(parserCalls, spec)
-	return scheduleMock{}, nil
-}
+// func parserMock(spec string) (cron.Schedule, error) {
+// 	parserCalls = append(parserCalls, spec)
+// 	return &scheduleMock{}, nil
+// }

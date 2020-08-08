@@ -66,14 +66,19 @@ func TestStop(t *testing.T) {
 }
 
 func TestDefine(t *testing.T) {
-	t.Run("Stop the agenda loop", func(t *testing.T) {
+	t.Run("should define a new job", func(t *testing.T) {
+		jr := &scheduled.JobRepoMock{}
 		a := Agenda{jobs: make(map[string]scheduled.Task),
 			jobsMutex:  &sync.RWMutex{},
 			running:    false,
 			cronParser: cron.ParseStandard,
-			jr:         &scheduled.JobRepoMock{},
+			jr:         jr,
 		}
-		a.Define("TestJob", func() error { return nil })
+		jobName := "TestJob"
+		jr.On("FindJobByName", jobName).Return(nil, nil)
+		jr.On("SaveJob", &scheduled.Job{Name: jobName, Scheduled: false, JobRunning: false}).Return(nil)
+
+		a.Define(jobName, func() error { return nil })
 		if _, err := a.getJob("TestJob"); err != nil {
 			t.Errorf("wanted TestJob to be defined got %v", err)
 		}
