@@ -77,7 +77,6 @@ func (db *JobRepository) FindAllJobs() ([]*scheduled.Job, error) {
 
 // FindJobByName returns the job given the name
 func (db *JobRepository) FindJobByName(jobName string) (*scheduled.Job, error) {
-	fmt.Println("FindJobByName")
 	var jobResult Job
 	var lastErr, nextRun, lastRun sql.NullString
 
@@ -123,8 +122,6 @@ func (db *JobRepository) FindJobByName(jobName string) (*scheduled.Job, error) {
 
 // SaveJob saves the provided job to db
 func (db *JobRepository) SaveJob(j *scheduled.Job) error {
-	fmt.Println("SaveJob")
-
 	query := "SELECT name FROM agendaJob where name = ?"
 	var jobName string
 	err := db.QueryRow(query, j.Name).Scan(&jobName)
