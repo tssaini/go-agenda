@@ -77,7 +77,7 @@ func (j *Job) Start() error {
 	if !j.HasSchedule() {
 		return fmt.Errorf("Job %v does not have a schedule defined", j.Name)
 	}
-	if j.isScheduled() {
+	if j.IsScheduled() {
 		return fmt.Errorf("Job %v is already scheduled to run", j.Name)
 	}
 
@@ -88,19 +88,22 @@ func (j *Job) Start() error {
 
 func (j *Job) run() {
 	j.setScheduled(true)
-	defer j.setScheduled(false)
+	err := j.Repository.SaveJob(j)
+	if err != nil {
+		log.Errorf("%v", err)
+	}
 	j.StartedChan <- struct{}{}
 
-	if j.NextRun != (time.Time{}) && j.NextRun.Before(time.Now().UTC()) {
+	if j.GetNextRun() != (time.Time{}) && j.GetNextRun().Before(time.Now().UTC()) {
 		j.runJobFunc()
 	}
 
 	for {
-		if j.NextRun == (time.Time{}) || j.NextRun.Before(time.Now().UTC()) {
+		if j.GetNextRun() == (time.Time{}) || j.GetNextRun().Before(time.Now().UTC()) {
 			j.calcNextRun()
 		}
 
-		d := j.NextRun.Sub(time.Now().UTC())
+		d := j.GetNextRun().Sub(time.Now().UTC())
 
 		select {
 		case <-j.StopChan:
@@ -126,7 +129,7 @@ func (j *Job) Schedule(parser func(string) (cron.Schedule, error), spec string) 
 }
 
 func (j *Job) calcNextRun() {
-	j.NextRun = j.Scheduler.Next(time.Now().UTC())
+	j.setNextRun(j.Scheduler.Next(time.Now().UTC()))
 	err := j.Repository.SaveJob(j)
 	if err != nil {
 		log.Errorf("%v", err)
@@ -139,15 +142,15 @@ func (j *Job) runJobFunc() {
 	j.JobMutex.Lock()
 	defer j.JobMutex.Unlock()
 
-	j.JobRunning = true
-	j.LastRun = time.Now().UTC()
+	j.setRunning(true)
+	j.setLastRun(time.Now().UTC())
 	err := j.Repository.SaveJob(j)
 	if err != nil {
 		log.Errorf("%v", err)
 	}
 
-	j.LastErr = j.JobFunc()
-	j.JobRunning = false
+	j.setLastErr(j.JobFunc())
+	j.setRunning(false)
 	err = j.Repository.SaveJob(j)
 	if err != nil {
 		log.Errorf("%v", err)
@@ -162,9 +165,13 @@ func (j *Job) ScheduleNow() {
 // Stop the job
 func (j *Job) Stop() {
 	log.Infof("Stopping job %v", j.Name)
-	if j.isScheduled() {
+	if j.IsScheduled() {
 		j.StopChan <- struct{}{}
 		j.setScheduled(false)
+		err := j.Repository.SaveJob(j)
+		if err != nil {
+			log.Errorf("%v", err)
+		}
 	}
 }
 
@@ -176,18 +183,71 @@ func (j *Job) HasSchedule() bool {
 	return false
 }
 
-func (j *Job) isScheduled() bool {
+// IsScheduled return true if scheduled
+func (j *Job) IsScheduled() bool {
 	j.AccessMutex.RLock()
 	defer j.AccessMutex.RUnlock()
 	return j.Scheduled
 }
 
-func (j *Job) setScheduled(running bool) {
+func (j *Job) setScheduled(scheduled bool) {
 	j.AccessMutex.Lock()
-	j.Scheduled = running
+	j.Scheduled = scheduled
 	j.AccessMutex.Unlock()
-	err := j.Repository.SaveJob(j)
-	if err != nil {
-		log.Errorf("%v", err)
-	}
+	// err := j.Repository.SaveJob(j)
+	// if err != nil {
+	// 	log.Errorf("%v", err)
+	// }
+}
+
+func (j *Job) setRunning(running bool) {
+	j.AccessMutex.Lock()
+	j.JobRunning = running
+	j.AccessMutex.Unlock()
+}
+
+// IsRunning returns true if job is running
+func (j *Job) IsRunning() bool {
+	j.AccessMutex.RLock()
+	defer j.AccessMutex.RUnlock()
+	return j.JobRunning
+}
+
+func (j *Job) setLastErr(e error) {
+	j.AccessMutex.Lock()
+	j.LastErr = e
+	j.AccessMutex.Unlock()
+}
+
+//GetLastErr returns the last err from job
+func (j *Job) GetLastErr() error {
+	j.AccessMutex.RLock()
+	defer j.AccessMutex.RUnlock()
+	return j.LastErr
+}
+
+func (j *Job) setLastRun(t time.Time) {
+	j.AccessMutex.Lock()
+	j.LastRun = t
+	j.AccessMutex.Unlock()
+}
+
+//GetLastRun returns the time of the last run
+func (j *Job) GetLastRun() time.Time {
+	j.AccessMutex.RLock()
+	defer j.AccessMutex.RUnlock()
+	return j.LastRun
+}
+
+func (j *Job) setNextRun(t time.Time) {
+	j.AccessMutex.Lock()
+	j.NextRun = t
+	j.AccessMutex.Unlock()
+}
+
+//GetNextRun returns the next time the job will run
+func (j *Job) GetNextRun() time.Time {
+	j.AccessMutex.RLock()
+	defer j.AccessMutex.RUnlock()
+	return j.NextRun
 }

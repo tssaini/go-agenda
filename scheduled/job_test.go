@@ -122,12 +122,12 @@ func TestStopJob(t *testing.T) {
 
 		j.Schedule(parserMock, "* * * * *")
 		j.Start()
-		if !j.isScheduled() {
+		if !j.IsScheduled() {
 			t.Error("testJob is not scheduled")
 		}
 		time.Sleep(10 * time.Millisecond) //Wait for the run go routine to start
 		j.Stop()
-		if j.isScheduled() {
+		if j.IsScheduled() {
 			t.Error("wanted testJob to be stopped")
 		}
 		jr.AssertExpectations(t)

@@ -119,17 +119,21 @@ func (db *JobRepository) SaveJob(j *scheduled.Job) error {
 	var jobName string
 	err := db.QueryRow(query, j.Name).Scan(&jobName)
 
-	lastErr := fmt.Sprintf("%v", j.LastErr)
+	lastErr := fmt.Sprintf("%v", j.GetLastErr())
+	nextRun := j.GetNextRun().Format("2006-01-02 15:04:05")
+	lastRun := j.GetLastRun().Format("2006-01-02 15:04:05")
+	scheduled := j.IsScheduled()
+	running := j.IsRunning()
 
 	if err == nil {
 		sqlStatement := "UPDATE agendaJob SET nextRun = ?, lastRun = ?, scheduled = ?, jobRunning = ?, lastErr = ? WHERE name = ?"
-		_, err := db.Exec(sqlStatement, j.NextRun.Format("2006-01-02 15:04:05"), j.LastRun.Format("2006-01-02 15:04:05"), j.Scheduled, j.JobRunning, lastErr, j.Name)
+		_, err := db.Exec(sqlStatement, nextRun, lastRun, scheduled, running, lastErr, j.Name)
 		if err != nil {
 			return err
 		}
 	} else {
 		sqlStatement := "INSERT INTO agendaJob (name, nextRun, lastRun, scheduled, jobRunning, lastErr) VALUES (?, ?, ?, ?, ?, ?)"
-		_, err := db.Exec(sqlStatement, j.Name, j.NextRun.Format("2006-01-02 15:04:05"), j.LastRun.Format("2006-01-02 15:04:05"), j.Scheduled, j.JobRunning, lastErr)
+		_, err := db.Exec(sqlStatement, j.Name, nextRun, lastRun, scheduled, running, lastErr)
 		if err != nil {
 			return err
 		}

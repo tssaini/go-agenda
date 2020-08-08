@@ -59,7 +59,7 @@ func (jr *JobRepoMock) FindJobByName(jobName string) (*Job, error) {
 
 // SaveJob mock the SaveJob
 func (jr *JobRepoMock) SaveJob(j *Job) error {
-	args := jr.Called(&Job{Name: j.Name, NextRun: j.NextRun, Scheduled: j.Scheduled, JobRunning: j.JobRunning, LastErr: j.LastErr})
+	args := jr.Called(&Job{Name: j.Name, NextRun: j.GetNextRun(), Scheduled: j.IsScheduled(), JobRunning: j.IsRunning(), LastErr: j.GetLastErr()})
 	return args.Error(0)
 }
 
