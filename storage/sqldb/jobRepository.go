@@ -90,9 +90,15 @@ func (db *JobRepository) FindJobByName(jobName string) (*scheduled.Job, error) {
 	}
 	if lastRun.Valid {
 		jobResult.LastRun, err = time.Parse("2006-01-02 15:04:05", lastRun.String)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if nextRun.Valid {
 		jobResult.NextRun, err = time.Parse("2006-01-02 15:04:05", nextRun.String)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if lastErr.Valid {
 		jobResult.LastErr = errors.New(lastErr.String)
